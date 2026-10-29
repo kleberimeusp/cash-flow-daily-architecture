@@ -1,0 +1,12 @@
+**/bin/
+**/obj/
+**/out/
+.git/
+.gitignore
+*.md
+!README.md
+.vs/
+.vscode/
+tests/
+deploy/
+TestResults/

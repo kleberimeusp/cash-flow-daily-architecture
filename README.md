@@ -631,6 +631,7 @@ Quatro painéis: volume de lançamentos (série temporal), lag de consolidação
 ```
 cashflow/
 ├── README.md                          # este arquivo
+├── ADR-000.md                         # decisão macro da arquitetura
 ├── CashFlow.sln
 │
 ├── docs/
@@ -660,13 +661,18 @@ cashflow/
 │   │   │   ├── LedgerDbContext.cs
 │   │   │   ├── OutboxMessage.cs
 │   │   │   └── OutboxRelay.cs
+│   │   ├── Migrations/                # EF Core migrations
 │   │   ├── Program.cs                 # Minimal API endpoints
 │   │   └── Dockerfile
 │   │
 │   └── CashFlow.Consolidation.Api/
 │       ├── Domain/DailyBalance.cs
 │       ├── Application/EntryConsumer.cs
-│       ├── Infrastructure/ConsolidationDbContext.cs
+│       ├── Infrastructure/
+│       │   ├── ConsolidationDbContext.cs
+│       │   ├── DailyBalanceRepository.cs  # UPSERT ON CONFLICT
+│       │   └── EntryRegisteredDlqFilter.cs
+│       ├── Migrations/
 │       ├── Program.cs
 │       └── Dockerfile
 │
@@ -676,8 +682,9 @@ cashflow/
 │
 └── deploy/
     ├── docker-compose.yml
-    ├── init-db.sql
-    └── prometheus/prometheus.yml
+    ├── init-db.sql                    # cria cashflow_ledger + cashflow_consolidation
+    ├── prometheus/prometheus.yml
+    └── grafana/provisioning/          # datasource Prometheus automático
 ```
 
 ---
@@ -937,16 +944,18 @@ coverage*.json
 
 deploy/init-db.sql
 
--- Schemas iniciais (as migrations do EF Core criam as tabelas)
-CREATE DATABASE cashflow;
-\c cashflow
+-- Bancos separados por serviço (ADR-001/ADR-003). As tabelas são criadas
+-- pelas migrations do EF Core na subida de cada API; este arquivo garante que
+-- os bancos existam antes das aplicações iniciarem em ambiente Docker.
 
--- Extensão para performance
+CREATE DATABASE cashflow_ledger;
+CREATE DATABASE cashflow_consolidation;
+
+\c cashflow_ledger
 CREATE EXTENSION IF NOT EXISTS pg_stat_statements;
 
--- Tabelas gerenciadas por EF Core Migrations.
--- Este arquivo existe apenas para garantir que o banco está pronto
--- antes das aplicações iniciarem em ambiente Docker.
+\c cashflow_consolidation
+CREATE EXTENSION IF NOT EXISTS pg_stat_statements;
 
 docs/adr/001-microservices-with-outbox.md
 
